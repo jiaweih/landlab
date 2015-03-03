@@ -12,7 +12,6 @@ from scipy.sparse import linalg
 
 class Glacier(Component):
 
-
 	def __init__(self,grid,dictionary,**kwds):
 		'''
 		Define physical parameters (here assuming EISMINT-1 values)
@@ -29,10 +28,22 @@ class Glacier(Component):
 		self.OMEGA = 1.5  # 1.6
 		super(Glacier,self).__init__(grid)
 		self.initialize(dictionary)
-		# self.MODEL = 3
-		# self.METHOD = 'BACKSLASH'   ### 'PCG'
 
 	def initialize(self,dictionary,**kwds):
+		'''
+		Initialize values for calculation:
+
+		S: ice surface ice_elevation
+		B: bed elevation 
+		b_dot: mass of ice added or subtracted from each cell 
+		dt: time interval
+		t_STOP: ending time for modeling
+		t: starting time for modeling
+		dx: node spacing
+		nx: number of columns of nodes
+		ny: number of rows of nodes
+		N: number of nodes
+		'''
 		self.S = kwds.pop('S',dictionary['S'])
 		self.B = kwds.pop('B',dictionary['B'])
 		self.b_dot = kwds.pop('b_dot',dictionary['b_dot'])
@@ -46,6 +57,12 @@ class Glacier(Component):
 		self.setupIndexArrays()
 
 	def step_update(self):
+		'''
+		calculate S (ice surface elevation) for each timestep 
+
+		H_max: maximum ice thickness
+		S_max: maximum ice surface elevation
+		'''
 		self.S, self.t = self.step()
 		SB = self.S - self.B
 		self.H_max = np.max(SB)
@@ -54,33 +71,45 @@ class Glacier(Component):
 		self.k_S_max = np.argmax(self.S)		
 
 	def recursive_steps(self):
+		'''
+		Iterate over each time step to update the ice surface elevation 
+		'''
 		while 1:
 			self.step_update()
-			print 'updated'
 			print self.S[0:5]
 			self.ALPHA_I = 100*np.sum(self.S > self.B)/float(self.N)
 			
 			print 'BKS: At t={:8.2f} yr ALPHA_I={:.2f}% and maxima are: H({:d}) = {:f} \
 			S({:d})={:f}\n'.format(self.t, self.ALPHA_I, self.k_H_max, self.H_max, self.k_S_max, self.S_max)
 
+			### Stop iterating until the final timestep
 			if self.t > self.t_STOP:
 				I = np.zeros(self.N)
 				I[self.S > self.B] = 1
-				S_map = self.S.reshape(self.ny,self.nx)
-				B_map = self.B.reshape(self.ny,self.nx)
-				I_map = I.reshape(self.ny,self.nx) 
-				now = datetime.datetime.now().strftime('%H:%M:%S')
-				file_str = 'S_map.txt'
-				print 'main(): Output stored in file "{:s}" at time {:s} \n'.format(file_str,now)
-				# np.savetxt('S_map.txt',S_map)
-				# np.savetxt('B_map.txt',B_map)
-				# np.savetxt('I_map.txt',I_map)
+
+				# S_map = self.S.reshape(self.ny,self.nx)
+				# B_map = self.B.reshape(self.ny,self.nx)
+				# I_map = I.reshape(self.ny,self.nx) 
+
+				### Note: the difference between python and matlab in matrix orders
+				S_map = self.S.reshape(self.nx,self.ny).T
+				B_map = self.B.reshape(self.nx,self.ny).T
+				I_map = I.reshape(self.nx,self.ny).T
 				self.grid['node']['ice_elevation'] = S_map
 				self.grid['node']['B_map'] = B_map
 				self.grid['node']['I_map'] = I_map
+
+				now = datetime.datetime.now().strftime('%H:%M:%S')
+				file_str = 'S_map.txt'
+				print 'main(): Output stored in file "{:s}" at time {:s} \n'.format(file_str,now)
 				break
 
 	def step(self): 
+		'''
+		For each timestep, a sparse linear system (Ax = C) need to be solved to update ice surface elevation
+		'''
+
+		### update diffusivity for each timestep
 		self.diffusion_update()
 		D_sum = self.D_IC_jc + self.D_IP_jc + self.D_ic_JC + self.D_ic_JP
 		
@@ -90,22 +119,23 @@ class Glacier(Component):
 		C = (1 - self.OMEGA) * ((self.D_IC_jc * self.S[self.im_jc]) + self.D_IP_jc * self.S[self.ip_jc] + self.D_ic_JC * self.S[self.ic_jm] + self.D_ic_JP * \
 			self.S[self.ic_jp]) + (1/self.dt - (1 - self.OMEGA) * D_sum) * self.S[self.ic_jc] + self.b_dot 
 		C = C.flatten()	
+
+		### construct a sparse matrix A
 		A = csr_matrix( (val,(row,col)), shape=(self.N, self.N))
-		# np.savetxt('A.txt',A)
-		np.savetxt('C.txt',C)
-		np.savetxt('val.txt',val)
 		print 'solving'
 		S_out = linalg.spsolve(A,C)
 		print 'solved'
+
+		### ice thickness couldn't be negative, ice surface elevation should not be less than bed elevation
 		S_out[S_out < self.B] = self.B[S_out < self.B]	
-		# for i in np.arange(self.B.size):
-		# 	if S_out[i] < self.B[i]:
-		# 		S_out[i] = self.B[i]
+
 		t_n = self.t + self.dt
 		return S_out, t_n
 
 	def diffusion_update(self):
-
+		'''
+		calculate diffusivity for each timestep
+		'''
 		A_tilde = 2 * self.A_GLEN * (self.RHO * self.g) ** self.n_GLEN/(self.n_GLEN + 2)/(self.dx ** 2)
 		C_tilde = self.C_SLIDE * (self.RHO * self.g)**self.m_SLIDE/(self.dx**2)
 		nm_half = (self.n_GLEN - 1) / 2
