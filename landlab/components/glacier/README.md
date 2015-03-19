@@ -75,7 +75,7 @@ Plot DEM with glaciers
 	plt.savefig('S_map_{0}yrs.pdf'.format(t_STOP),dpi=300)
 ![DEM](images/S_map.pdf)
 
-Plot masks of glaciers
+Plot model accuracy
 -------------------------------
 	plot_mask('I_map.txt','obs_map.txt')
 ![mask](images/mask.pdf)
