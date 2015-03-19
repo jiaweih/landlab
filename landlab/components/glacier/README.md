@@ -62,7 +62,7 @@ Plot thickness
 	plt.colorbar()
 
 	plt.savefig('H_map_{0}yrs.pdf'.format(t_STOP),dpi=300)
-![thickness](h_map.png)
+![thickness](images/h_map.pdf)
 
 Plot DEM with glaciers 
 ------------------------------
