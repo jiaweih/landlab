@@ -30,7 +30,7 @@ Outputs
 
 `H_map`: matrix of ice thickness
 
-`mask`: masks of simulated and observed ice
+`I_map`: matrix of binary mask of simulated ice
 
 How to run the model
 ----------------------
