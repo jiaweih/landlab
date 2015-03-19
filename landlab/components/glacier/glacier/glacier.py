@@ -76,7 +76,7 @@ class Glacier(Component):
 		'''
 		while 1:
 			self.step_update()
-			print self.S[0:5]
+			# print self.S[0:5]
 			self.ALPHA_I = 100*np.sum(self.S > self.B)/float(self.N)
 			
 			print 'BKS: At t={:8.2f} yr ALPHA_I={:.2f}% and maxima are: H({:d}) = {:f} \
@@ -95,10 +95,11 @@ class Glacier(Component):
 				S_map = self.S.reshape(self.nx,self.ny).T
 				B_map = self.B.reshape(self.nx,self.ny).T
 				I_map = I.reshape(self.nx,self.ny).T
+				H_map = S_map - B_map
 				self.grid['node']['ice_elevation'] = S_map
 				self.grid['node']['B_map'] = B_map
 				self.grid['node']['I_map'] = I_map
-
+				self.grid['node']['ice_thickness'] = H_map
 				now = datetime.datetime.now().strftime('%H:%M:%S')
 				file_str = 'S_map.txt'
 				print 'main(): Output stored in file "{:s}" at time {:s} \n'.format(file_str,now)
@@ -122,9 +123,9 @@ class Glacier(Component):
 
 		### construct a sparse matrix A
 		A = csr_matrix( (val,(row,col)), shape=(self.N, self.N))
-		print 'solving'
+		# print 'solving'
 		S_out = linalg.spsolve(A,C)
-		print 'solved'
+		# print 'solved'
 
 		### ice thickness couldn't be negative, ice surface elevation should not be less than bed elevation
 		S_out[S_out < self.B] = self.B[S_out < self.B]	
@@ -138,9 +139,9 @@ class Glacier(Component):
 		'''
 		A_tilde = 2 * self.A_GLEN * (self.RHO * self.g) ** self.n_GLEN/(self.n_GLEN + 2)/(self.dx ** 2)
 		C_tilde = self.C_SLIDE * (self.RHO * self.g)**self.m_SLIDE/(self.dx**2)
-		nm_half = (self.n_GLEN - 1) / 2
+		nm_half = (self.n_GLEN - 1) / 2.0   ### @
 		npl = self.n_GLEN + 1
-		mm_half = (self.m_SLIDE - 1) / 2
+		mm_half = (self.m_SLIDE - 1) / 2.0  ### @
 		ml = self.m_SLIDE
 		
 		SB = self.S - self.B
