@@ -1,7 +1,7 @@
 
 #1. What does model do
 
-This model aims to simulate mountain glaciers in computational domains containing many grid nodes over century-long model periods.
+This model simulates mountain glaciers forced by ice mass balance fields.
 
 
 #2. Running the model
