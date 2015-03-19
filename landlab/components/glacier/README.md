@@ -1,7 +1,7 @@
 
 #1. What does model do
 
-This model simulates mountain glaciers forced by ice mass balance fields.
+This model simulates mountain glaciers forced by ice mass balance fields. Scripts are provided to visualize model outputs. When observation masks are provided, visuals of model spatial accuracy can be plotted using the scripts. 
 
 
 #2. Running the model
